@@ -40,6 +40,8 @@ const manifestPlugin = () => {
 export default defineConfig({
   plugins: [react(), manifestPlugin()],
   build: {
+    outDir: 'dist',
+    emptyOutDir: true,
     rollupOptions: {
       input: {
         sidepanel: resolve(__dirname, "src/sidepanel/index.html"),
@@ -54,9 +56,18 @@ export default defineConfig({
           if (chunkInfo.name === "content") {
             return "content.js";
           }
+          if (chunkInfo.name === "sidepanel") {
+            return "sidepanel.js";
+          }
           return "[name].js";
         },
-        assetFileNames: 'assets/[name]-[hash][extname]'
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name?.endsWith('.html')) {
+            return 'sidepanel.html';
+          }
+          return 'assets/[name]-[hash][extname]';
+        }
       },
     },
   },
