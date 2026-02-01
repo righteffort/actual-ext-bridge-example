@@ -56,13 +56,7 @@ export default defineConfig({
           }
           return "[name].js";
         },
-        // Force the HTML file to be named sidepanel.html at the root of dist
-        assetFileNames: (assetInfo) => {
-            if (assetInfo.name === 'index.html' || assetInfo.name === 'sidepanel.html') {
-                return 'sidepanel.html';
-            }
-            return 'assets/[name]-[hash][extname]';
-        }
+        assetFileNames: 'assets/[name]-[hash][extname]'
       },
     },
   },
