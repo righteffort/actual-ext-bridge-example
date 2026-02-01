@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { getBaseUrl, setBaseUrl } from "../shared/storage";
-import { RemoteBridge } from "@righteffort/actual-ext-bridge";
+import { RemoteBridge, BridgeState, Transaction } from "@righteffort/actual-ext-bridge";
 
 /**
  * Main Side Panel Application
@@ -9,9 +9,19 @@ export default function App() {
   const [baseUrl, setBaseUrlState] = useState<string>("");
   const [storedUrl, setStoredUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("Initializing...");
+  
+  // Bridge State
+  const [bridgeState, setBridgeState] = useState<BridgeState>({
+    connected: false,
+    context: { type: "UNKNOWN", accountId: null },
+    transactions: null,
+    accounts: null,
+  });
 
-  // Stub remote bridge for now
-  const [_bridge] = useState(() => new RemoteBridge());
+  // Account Selection (User types name, we resolve to ID from bridgeState.accounts)
+  const [targetAccountName, setTargetAccountName] = useState("");
+
+  const [bridge] = useState(() => new RemoteBridge());
 
   useEffect(() => {
     // Load initial config
@@ -22,14 +32,32 @@ export default function App() {
     });
   }, []);
 
+  // Subscribe to Bridge State
+  useEffect(() => {
+    if (!storedUrl) return;
+    
+    // Connect bridge
+    bridge.connect({ baseUrl: storedUrl }).catch(e => console.error(e));
+
+    const unsubscribe = bridge.subscribe((state) => {
+      setBridgeState(state);
+      if (state.connected) {
+        setStatus("Connected to Actual");
+      } else {
+        setStatus("Disconnected (Open Actual tab)");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [storedUrl, bridge]);
+
   const handleSaveConfig = async () => {
     try {
-      // Basic validation
       const url = new URL(baseUrl).origin;
-      
-      // Request permissions (Optional Host Permissions)
+      // Request permissions dynamically
       const granted = await chrome.permissions.request({
-        origins: [`${url}/*`]
+        origins: [`${url}/*`],
+        permissions: ["scripting"]
       });
 
       if (granted) {
@@ -40,50 +68,206 @@ export default function App() {
         setStatus("Permission denied.");
       }
     } catch (e) {
-      setStatus("Invalid URL format");
+      setStatus(`Invalid URL format: ${e.message}`);
     }
   };
 
-  return (
-    <div style={{ padding: "16px", fontFamily: "sans-serif" }}>
-      <h2>Actual Transaction Details</h2>
+  const getTargetAccountId = useCallback(() => {
+    if (!bridgeState.accounts || !targetAccountName) return null;
+    const account = bridgeState.accounts.find(
+      (a) => a.name.toLowerCase() === targetAccountName.toLowerCase()
+    );
+    return account ? account.id : null;
+  }, [bridgeState.accounts, targetAccountName]);
+
+  const handleImportPoC = async () => {
+    const accountId = getTargetAccountId();
+    if (!accountId) {
+      setStatus("Error: Account not found or name empty.");
+      return;
+    }
+
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      await bridge.createTransaction({
+        account: accountId,
+        date: today,
+        amount: -1000, // $10.00
+        payee_name: "Extension Test Payee",
+        notes: "extension test update me",
+        imported_id: `ext-poc-${Date.now()}`,
+        cleared: false
+      });
+      setStatus("Success: Imported Transaction");
+    } catch (e: any) {
+      setStatus(`Error: ${e.message}`);
+    }
+  };
+
+  const handleModify = async () => {
+    try {
+      const txs = await bridge.getTransactions();
+      if (!txs) {
+        setStatus("Error: No transactions loaded.");
+        return;
+      }
+
+      const targets = txs.filter(t => t.notes && t.notes.includes("extension test update me"));
       
-      <div style={{ marginBottom: "16px", padding: "8px", background: "#f5f5f5", borderRadius: "4px" }}>
+      if (targets.length === 0) {
+        setStatus("Info: No matching 'update me' transactions found.");
+        return;
+      }
+
+      for (const tx of targets) {
+        const updatedTx: Transaction = {
+          ...tx,
+          notes: tx.notes?.replace("me", "complete") + " (Updated)",
+        };
+        await bridge.saveTransaction(updatedTx);
+      }
+      setStatus(`Success: Updated ${targets.length} transactions.`);
+    } catch (e: any) {
+      setStatus(`Error: ${e.message}`);
+    }
+  };
+
+  const handleSplit = async () => {
+    try {
+      const txs = await bridge.getTransactions();
+      if (!txs) {
+        setStatus("Error: No transactions loaded.");
+        return;
+      }
+
+      const targets = txs.filter(t => t.notes && t.notes.includes("extension test split me"));
+      
+      if (targets.length === 0) {
+        setStatus("Info: No matching 'split me' transactions found.");
+        return;
+      }
+
+      for (const tx of targets) {
+         // Create a split: Original amount is split into two.
+         // Actual Budget handles splits by having subtransactions sum up (usually).
+         // Or parent transaction amount = sum of subtransactions.
+         
+         const splitAmount1 = Math.floor(tx.amount / 2);
+         const splitAmount2 = tx.amount - splitAmount1;
+
+         const updatedTx: Transaction = {
+           ...tx,
+           notes: tx.notes?.replace("me", "complete") + " (Split)",
+           is_parent: true,
+           subtransactions: [
+             {
+               id: crypto.randomUUID(),
+               account: tx.account,
+               date: tx.date,
+               amount: splitAmount1,
+               notes: "Split Part 1",
+             },
+             {
+               id: crypto.randomUUID(),
+               account: tx.account,
+               date: tx.date,
+               amount: splitAmount2,
+               notes: "Split Part 2",
+             }
+           ]
+         };
+         await bridge.saveTransaction(updatedTx);
+      }
+      setStatus(`Success: Split ${targets.length} transactions.`);
+    } catch (e: any) {
+      setStatus(`Error: ${e.message}`);
+    }
+  };
+
+  // Helper to generate fake account list if bridge is stubbed and returns null
+  // (Optional, for testing UI without real connection)
+  useEffect(() => {
+     if (bridgeState.connected && !bridgeState.accounts) {
+         // If bridge connects but returns no accounts (stubbed), UI might be blocked.
+         // We rely on the bridge returning valid data.
+     }
+  }, [bridgeState]);
+
+  return (
+    <div style={{ padding: "16px", fontFamily: "sans-serif", minWidth: "300px" }}>
+      <h2 style={{ fontSize: "1.2rem", margin: "0 0 16px 0" }}>Actual Transaction Details</h2>
+      
+      <div style={{ marginBottom: "16px", padding: "8px", background: "#f5f5f5", borderRadius: "4px", fontSize: "0.9rem" }}>
         <strong>Status:</strong> {status}
       </div>
 
       {!storedUrl || storedUrl !== baseUrl ? (
          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-           <label>
+           <label style={{ fontSize: "0.9rem" }}>
              Actual Budget URL:
              <input 
                type="text" 
                value={baseUrl} 
                onChange={(e) => setBaseUrlState(e.target.value)}
                placeholder="https://app.actualbudget.org"
-               style={{ width: "100%", padding: "4px", marginTop: "4px" }}
+               style={{ width: "100%", padding: "6px", marginTop: "4px", boxSizing: "border-box" }}
              />
            </label>
-           <button onClick={handleSaveConfig} style={{ padding: "8px" }}>
+           <button onClick={handleSaveConfig} style={{ padding: "8px", cursor: "pointer" }}>
              Save & Authorize
            </button>
          </div>
       ) : (
         <div>
-           <p>Connected to: <strong>{storedUrl}</strong></p>
+           <p style={{ fontSize: "0.8rem", color: "#666", margin: "0 0 16px 0" }}>
+             Connected to: <strong>{storedUrl}</strong>
+           </p>
            
-           <hr style={{ margin: "16px 0" }} />
-           
-           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <input 
-                type="text" 
-                placeholder="Account Name (e.g. My Checking)" 
-                style={{ width: "100%", padding: "4px" }}
-              />
-              <button disabled>Import PoC (Disconnected)</button>
-              <button disabled>Modify 'me' Notes</button>
-              <button disabled>Split 'me' Transactions</button>
+           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div>
+                <label style={{ fontSize: "0.9rem", display: "block", marginBottom: "4px" }}>Target Account Name:</label>
+                <input 
+                  type="text" 
+                  value={targetAccountName}
+                  onChange={(e) => setTargetAccountName(e.target.value)}
+                  placeholder="e.g. My Checking" 
+                  style={{ width: "100%", padding: "6px", boxSizing: "border-box" }}
+                />
+                 {bridgeState.accounts && targetAccountName && !getTargetAccountId() && (
+                    <small style={{ color: "red" }}>Account not found</small>
+                 )}
+              </div>
+
+              <button 
+                onClick={handleImportPoC}
+                disabled={!bridgeState.connected || !getTargetAccountId()}
+                style={{ padding: "8px", cursor: "pointer" }}
+              >
+                Import PoC Transaction
+              </button>
+
+              <button 
+                onClick={handleModify}
+                disabled={!bridgeState.connected}
+                style={{ padding: "8px", cursor: "pointer" }}
+              >
+                Modify 'me' Notes
+              </button>
+
+              <button 
+                onClick={handleSplit}
+                disabled={!bridgeState.connected}
+                style={{ padding: "8px", cursor: "pointer" }}
+              >
+                Split 'me' Transactions
+              </button>
            </div>
+           
+           {/* Debug info */}
+           <details style={{ marginTop: "20px", fontSize: "0.7rem", color: "#999" }}>
+             <summary>Bridge Debug</summary>
+             <pre>{JSON.stringify(bridgeState, null, 2)}</pre>
+           </details>
         </div>
       )}
     </div>
