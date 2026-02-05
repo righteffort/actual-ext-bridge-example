@@ -35,7 +35,9 @@ export default function App() {
     if (!storedUrl) return;
     
     // Connect bridge
+    console.log('App.tsx calling connect ...');
     bridge.connect({ baseUrl: storedUrl }).catch(e => console.error(e));
+    console.log('...App.tsx called connect');
 
     const unsubscribe = bridge.subscribe((state) => {
       setBridgeState(state);
@@ -98,8 +100,8 @@ export default function App() {
         date: today,
         amount: -1000, // $10.00
         payee_name: "Extension Test Payee",
-        notes: "extension test update me",
-        imported_id: `ext-poc-${Date.now()}`,
+        notes: "extension test import example",
+        imported_id: `ext-poc-${Date.now()}`,  // arbitrary, doesn't need to be UUID
         cleared: false
       });
       setStatus("Success: Imported Transaction");
@@ -121,9 +123,13 @@ export default function App() {
       }
 
       for (const tx of targets) {
+	const newNotes = tx.notes?.replace("extension test update me", "extension test update complete");
+	if (newNotes === undefined) {
+	  throw Error(`Strange, failed to set new notes for ${tx.id} (was ${tx.notes})`);
+	}
         const updatedTx: Transaction = {
           ...tx,
-          notes: tx.notes?.replace("me", "complete") + " (Updated)",
+          notes: newNotes,
         };
         await bridge.updateTransaction(updatedTx);
       }
@@ -141,39 +147,42 @@ export default function App() {
       );
 
       if (!targets || targets.length === 0) {
-        setStatus("Info: No matching 'split me' transactions found.");
+        setStatus("Info: No matching 'extension test split me' transactions found.");
         return;
       }
 
       for (const tx of targets) {
-         // Create a split: Original amount is split into two.
-         // Actual Budget handles splits by having subtransactions sum up (usually).
-         // Or parent transaction amount = sum of subtransactions.
-         const splitAmount1 = Math.floor(tx.amount / 2);
-         const splitAmount2 = tx.amount - splitAmount1;
-
-         const updatedTx: Transaction = {
-           ...tx,
-           notes: tx.notes?.replace("me", "complete") + " (Split)",
-           is_parent: true,
-           subtransactions: [
-             {
-               id: crypto.randomUUID(),
-               account: tx.account,
-               date: tx.date,
-               amount: splitAmount1,
-               notes: "Split Part 1",
-             },
-             {
-               id: crypto.randomUUID(),
-               account: tx.account,
-               date: tx.date,
-               amount: splitAmount2,
-               notes: "Split Part 2",
-             }
-           ]
-         };
-         await bridge.updateTransaction(updatedTx);
+        // Create a split: Original amount is split into two.
+        // Actual Budget handles splits by having subtransactions sum up (usually).
+        // Or parent transaction amount = sum of subtransactions.
+        const splitAmount1 = Math.floor(tx.amount / 2);
+        const splitAmount2 = tx.amount - splitAmount1;
+	const newNotes = tx.notes?.replace("extension test split me", "extension test split complete");
+	if (newNotes === undefined) {
+	  throw Error(`Strange, failed to set new notes for ${tx.id} (was ${tx.notes})`);
+	}
+        const updatedTx: Transaction = {
+          ...tx,
+          notes: newNotes,
+          is_parent: true,
+          subtransactions: [
+            {
+              id: crypto.randomUUID(),
+              account: tx.account,
+              date: tx.date,
+              amount: splitAmount1,
+              notes: "Split Part 1",
+            },
+            {
+              id: crypto.randomUUID(),
+              account: tx.account,
+              date: tx.date,
+              amount: splitAmount2,
+              notes: "Split Part 2",
+            }
+          ]
+        };
+        await bridge.updateTransaction(updatedTx);
       }
       setStatus(`Success: Split ${targets.length} transactions.`);
     } catch (e: any) {
@@ -239,7 +248,7 @@ export default function App() {
                 disabled={!bridgeState.connected}
                 style={{ padding: "8px", cursor: "pointer" }}
               >
-                Modify 'me' Notes
+                Modify 'extension test update me' notes
               </button>
 
               <button 
@@ -247,7 +256,7 @@ export default function App() {
                 disabled={!bridgeState.connected}
                 style={{ padding: "8px", cursor: "pointer" }}
               >
-                Split 'me' Transactions
+                Split 'extension test split me' transactions
               </button>
            </div>
            

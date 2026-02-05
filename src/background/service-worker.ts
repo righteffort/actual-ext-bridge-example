@@ -11,6 +11,7 @@ arbiter.start();
 
 // Listen for side panel opening (optional, good for UX)
 chrome.runtime.onInstalled.addListener(() => {
+  console.log(`service-worker onInstalled`);
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 });
 
