@@ -10,16 +10,13 @@ export default function App() {
   const [storedUrl, setStoredUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("Initializing...");
   
-  // Bridge State
   const [bridgeState, setBridgeState] = useState<BridgeState>({
     connected: false,
     context: { type: "UNKNOWN", accountId: null },
-    transactions: null,
-    accounts: null,
   });
 
-  // Account Selection (User types name, we resolve to ID from bridgeState.accounts)
   const [targetAccountName, setTargetAccountName] = useState("");
+  const [resolvedAccountId, setResolvedAccountId] = useState<string | null>(null);
 
   const [bridge] = useState(() => new RemoteBridge());
 
@@ -51,6 +48,21 @@ export default function App() {
     return () => unsubscribe();
   }, [storedUrl, bridge]);
 
+  // Resolve Account Name -> ID when name changes or connection is established
+  useEffect(() => {
+    if (!bridgeState.connected || !targetAccountName) {
+      setResolvedAccountId(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      // Use the new light-weight RPC method
+      const account = await bridge.getAccountByName(targetAccountName);
+      setResolvedAccountId(account ? account.id : null);
+    }, 500); // Debounce
+    return () => clearTimeout(timer);
+  }, [bridgeState.connected, targetAccountName, bridge]);
+
+
   const handleSaveConfig = async () => {
     try {
       const url = new URL(baseUrl).origin;
@@ -72,25 +84,16 @@ export default function App() {
     }
   };
 
-  const getTargetAccountId = useCallback(() => {
-    if (!bridgeState.accounts || !targetAccountName) return null;
-    const account = bridgeState.accounts.find(
-      (a) => a.name.toLowerCase() === targetAccountName.toLowerCase()
-    );
-    return account ? account.id : null;
-  }, [bridgeState.accounts, targetAccountName]);
-
   const handleImportPoC = async () => {
-    const accountId = getTargetAccountId();
-    if (!accountId) {
-      setStatus("Error: Account not found or name empty.");
+    if (!resolvedAccountId) {
+      setStatus("Error: Account not found.");
       return;
     }
 
     try {
       const today = new Date().toISOString().split("T")[0];
       await bridge.createTransaction({
-        account: accountId,
+        account: resolvedAccountId,
         date: today,
         amount: -1000, // $10.00
         payee_name: "Extension Test Payee",
@@ -106,15 +109,12 @@ export default function App() {
 
   const handleModify = async () => {
     try {
-      const txs = await bridge.getTransactions();
-      if (!txs) {
-        setStatus("Error: No transactions loaded.");
-        return;
-      }
+      // Use RPC with predicate
+      const targets = await bridge.getTransactions(
+        (t) => !!(t.notes && t.notes.includes("extension test update me"))
+      );
 
-      const targets = txs.filter(t => t.notes && t.notes.includes("extension test update me"));
-      
-      if (targets.length === 0) {
+      if (!targets || targets.length === 0) {
         setStatus("Info: No matching 'update me' transactions found.");
         return;
       }
@@ -134,15 +134,12 @@ export default function App() {
 
   const handleSplit = async () => {
     try {
-      const txs = await bridge.getTransactions();
-      if (!txs) {
-        setStatus("Error: No transactions loaded.");
-        return;
-      }
+      // Use RPC with predicate
+      const targets = await bridge.getTransactions(
+         (t) => !!(t.notes && t.notes.includes("extension test split me"))
+      );
 
-      const targets = txs.filter(t => t.notes && t.notes.includes("extension test split me"));
-      
-      if (targets.length === 0) {
+      if (!targets || targets.length === 0) {
         setStatus("Info: No matching 'split me' transactions found.");
         return;
       }
@@ -151,7 +148,6 @@ export default function App() {
          // Create a split: Original amount is split into two.
          // Actual Budget handles splits by having subtransactions sum up (usually).
          // Or parent transaction amount = sum of subtransactions.
-         
          const splitAmount1 = Math.floor(tx.amount / 2);
          const splitAmount2 = tx.amount - splitAmount1;
 
@@ -183,15 +179,6 @@ export default function App() {
       setStatus(`Error: ${e.message}`);
     }
   };
-
-  // Helper to generate fake account list if bridge is stubbed and returns null
-  // (Optional, for testing UI without real connection)
-  useEffect(() => {
-     if (bridgeState.connected && !bridgeState.accounts) {
-         // If bridge connects but returns no accounts (stubbed), UI might be blocked.
-         // We rely on the bridge returning valid data.
-     }
-  }, [bridgeState]);
 
   return (
     <div style={{ padding: "16px", fontFamily: "sans-serif", minWidth: "300px" }}>
@@ -233,14 +220,14 @@ export default function App() {
                   placeholder="e.g. My Checking" 
                   style={{ width: "100%", padding: "6px", boxSizing: "border-box" }}
                 />
-                 {bridgeState.accounts && targetAccountName && !getTargetAccountId() && (
+                 {targetAccountName && !resolvedAccountId && bridgeState.connected && (
                     <small style={{ color: "red" }}>Account not found</small>
                  )}
               </div>
 
               <button 
                 onClick={handleImportPoC}
-                disabled={!bridgeState.connected || !getTargetAccountId()}
+                disabled={!bridgeState.connected || !resolvedAccountId}
                 style={{ padding: "8px", cursor: "pointer" }}
               >
                 Import PoC Transaction
