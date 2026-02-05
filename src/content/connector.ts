@@ -12,7 +12,7 @@ const connector = new BridgeConnector();
 async function init() {
   const baseUrl = await getBaseUrl();
   console.log(
-    "Connector: Initializing...",
+    "AXBE: Connector: Initializing...",
     baseUrl ? `Target: ${baseUrl}` : "No URL configured",
   );
 
@@ -20,14 +20,16 @@ async function init() {
   // (In a real impl, we'd check if window.location.origin matches baseUrl first)
   if (baseUrl) {
     if (window.location.origin === baseUrl) {
-      connector.start();
+      console.log("ABXE: starting connector...");
+      await connector.start();
+      console.log("ABXE: ... started connector");
     }
   }
 }
 
 // Listen for Master Grant events
 connector.on("primary-changed", async (isMaster) => {
-  console.log("Connector: Master Status Changed:", isMaster);
+  console.log("AXBE: Connector: Master Status Changed:", isMaster);
 
   if (isMaster) {
     if (!bridge) {
@@ -38,23 +40,23 @@ connector.on("primary-changed", async (isMaster) => {
     if (baseUrl) {
       try {
         await bridge.connect({ baseUrl });
-        console.log("Connector: Bridge Connected");
+        console.log("AXBE: Connector: Bridge Connected");
 
         // Subscribe and forward state to background/sidepanel via runtime messages if needed
         // For now, the sidepanel uses RemoteBridge which goes through the Arbiter/Background
         bridge.subscribe((state) => {
-          console.log("Connector: Bridge State Update", state);
+          console.log("AXBE: Connector: Bridge State Update", state);
           // TODO: Forward to background if architecture demands it,
           // but RemoteBridge usually polls or sends messages to Content Script.
         });
       } catch (e) {
-        console.error("Connector: Failed to connect bridge", e);
+        console.error("AXBE: Connector: Failed to connect bridge", e);
       }
     }
   } else {
     if (bridge) {
       bridge.disconnect();
-      console.log("Connector: Bridge Disconnected (Revoked Master)");
+      console.log("AXBE: Connector: Bridge Disconnected (Revoked Master)");
     }
   }
 });

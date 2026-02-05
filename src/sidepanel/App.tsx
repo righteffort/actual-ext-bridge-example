@@ -35,9 +35,9 @@ export default function App() {
     if (!storedUrl) return;
     
     // Connect bridge
-    console.log('App.tsx calling connect ...');
-    bridge.connect({ baseUrl: storedUrl }).catch(e => console.error(e));
-    console.log('...App.tsx called connect');
+    console.log('AXBE: App.tsx calling connect ...');
+    bridge.connect({ baseUrl: storedUrl }).catch(e => console.error('AXBE:',e));
+    console.log('AXBE: ...App.tsx called connect');
 
     const unsubscribe = bridge.subscribe((state) => {
       setBridgeState(state);
