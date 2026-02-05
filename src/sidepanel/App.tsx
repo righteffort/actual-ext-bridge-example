@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { getBaseUrl, setBaseUrl } from "../shared/storage";
-import { RemoteBridge, BridgeState, Transaction } from "@righteffort/actual-ext-bridge";
+import { RemoteBridge } from "@righteffort/actual-ext-bridge";
+import type { BridgeState, Transaction } from "@righteffort/actual-ext-bridge";
 
 /**
  * Main Side Panel Application
@@ -80,7 +81,7 @@ export default function App() {
         setStatus("Permission denied.");
       }
     } catch (e) {
-      setStatus(`Invalid URL format: ${e.message}`);
+      setStatus(`Invalid URL format: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 
@@ -91,7 +92,7 @@ export default function App() {
     }
 
     try {
-      const today = new Date().toISOString().split("T")[0];
+      const today = new Date().toISOString().split("T")[0]!;
       await bridge.createTransaction({
         account: resolvedAccountId,
         date: today,
@@ -124,7 +125,7 @@ export default function App() {
           ...tx,
           notes: tx.notes?.replace("me", "complete") + " (Updated)",
         };
-        await bridge.saveTransaction(updatedTx);
+        await bridge.updateTransaction(updatedTx);
       }
       setStatus(`Success: Updated ${targets.length} transactions.`);
     } catch (e: any) {
@@ -172,7 +173,7 @@ export default function App() {
              }
            ]
          };
-         await bridge.saveTransaction(updatedTx);
+         await bridge.updateTransaction(updatedTx);
       }
       setStatus(`Success: Split ${targets.length} transactions.`);
     } catch (e: any) {

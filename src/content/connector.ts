@@ -26,7 +26,7 @@ async function init() {
 }
 
 // Listen for Master Grant events
-connector.on("master-changed", async (isMaster) => {
+connector.on("primary-changed", async (isMaster) => {
   console.log("Connector: Master Status Changed:", isMaster);
 
   if (isMaster) {
