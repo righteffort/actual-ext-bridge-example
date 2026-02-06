@@ -8,6 +8,7 @@ import { getBaseUrl, onBaseUrlChange } from "../shared/storage";
 
 const connector = new BridgeConnector();
 
+// Note that this never resolves, so the caller should not await.
 async function init() {
   const baseUrl = await getBaseUrl();
   console.log(
@@ -15,8 +16,7 @@ async function init() {
     baseUrl ? `Target: ${baseUrl}` : "No URL configured",
   );
 
-  // If we have a URL, start the connector arbitration
-  // (In a real impl, we'd check if window.location.origin matches baseUrl first)
+  // If we have a URL, start the arbiter/router
   if (baseUrl) {
     if (window.location.origin === baseUrl) {
       console.log("ABXE: starting connector...");

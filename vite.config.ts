@@ -1,8 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import webExtension from "vite-plugin-web-extension";
-
 import webExtension, { readJsonFile } from "vite-plugin-web-extension";
+import { viteStaticCopy } from "vite-plugin-static-copy";
 
 function generateManifest() {
   const manifest = readJsonFile("src/manifest.json");
@@ -12,6 +11,13 @@ function generateManifest() {
     description: manifest.description || pkg.description,
     version: pkg.version,
     ...manifest,
+    web_accessible_resources: [
+      ...(manifest.web_accessible_resources || []),
+      {
+        resources: ["src/content/guest-logic.js"],
+        matches: ["<all_urls>"]
+      }
+    ]
   };
 }
 
@@ -23,5 +29,13 @@ export default defineConfig({
       watchFilePaths: ["package.json", "src/manifest.json"],
       browser: process.env.TARGET || "chrome",
     }),
+    viteStaticCopy({
+      targets: [
+        {
+          src: "node_modules/@righteffort/actual-ext-bridge/dist/content/guest-logic.js",
+          dest: "src/content"
+        }
+      ]
+    })
   ],
 });

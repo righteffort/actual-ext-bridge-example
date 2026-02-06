@@ -27,19 +27,23 @@ export default function App() {
       setStoredUrl(url);
       if (url) setBaseUrlState(url);
       setStatus(url ? "Ready to Connect" : "Needs Configuration");
+      console.log(`AXBE: getBaseUrl returned ${url}`);
     });
   }, []);
 
   // Subscribe to Bridge State
+  // ... though why bother if we're not next to the primary tab, it only creates the appearance that non-primary is primary
   useEffect(() => {
     if (!storedUrl) return;
     
     // Connect bridge
-    console.log('AXBE: App.tsx calling connect ...');
-    bridge.connect({ baseUrl: storedUrl }).catch(e => console.error('AXBE:',e));
-    console.log('AXBE: ...App.tsx called connect');
+    // console.log('AXBE: App.tsx connecting to RemoteBridge ...');
+    // bridge.connect({ baseUrl: storedUrl }).catch(e => console.error('AXBE:',e));
+    // console.log('AXBE: ...App.tsx connected to RemoteBridge');
 
+    console.log(`AXBE: subscribing to state updates`);
     const unsubscribe = bridge.subscribe((state) => {
+      console.log(`AXBE: received new state ${JSON.stringify(state)}`);
       setBridgeState(state);
       if (state.connected) {
         setStatus("Connected to Actual");
@@ -52,19 +56,18 @@ export default function App() {
   }, [storedUrl, bridge]);
 
   // Resolve Account Name -> ID when name changes or connection is established
+  // ... though why bother if we're not next to the primary tab
   useEffect(() => {
     if (!bridgeState.connected || !targetAccountName) {
       setResolvedAccountId(null);
       return;
     }
     const timer = setTimeout(async () => {
-      // Use the new light-weight RPC method
       const account = await bridge.getAccountByName(targetAccountName);
       setResolvedAccountId(account ? account.id : null);
     }, 500); // Debounce
     return () => clearTimeout(timer);
   }, [bridgeState.connected, targetAccountName, bridge]);
-
 
   const handleSaveConfig = async () => {
     try {
