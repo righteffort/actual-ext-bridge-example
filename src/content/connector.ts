@@ -1,4 +1,4 @@
-import { LocalBridge, BridgeConnector } from "@righteffort/actual-ext-bridge";
+import { BridgeConnector } from "@righteffort/actual-ext-bridge";
 import { getBaseUrl, onBaseUrlChange } from "../shared/storage";
 
 /**
@@ -6,7 +6,6 @@ import { getBaseUrl, onBaseUrlChange } from "../shared/storage";
  * Manages the connection between the Extension and the Page (Main World).
  */
 
-let bridge: LocalBridge | null = null;
 const connector = new BridgeConnector();
 
 async function init() {
@@ -27,39 +26,17 @@ async function init() {
   }
 }
 
-// Listen for Master Grant events
-connector.on("primary-changed", async (isMaster) => {
-  console.log("AXBE: Connector: Master Status Changed:", isMaster);
+// // Listen for Master Grant events
+// connector.on("primary-changed", async (isMaster) => {
+//   console.log("AXBE: Connector: Master Status Changed:", isMaster);
 
-  if (isMaster) {
-    if (!bridge) {
-      bridge = new LocalBridge();
-    }
-
-    const baseUrl = await getBaseUrl();
-    if (baseUrl) {
-      try {
-        await bridge.connect({ baseUrl });
-        console.log("AXBE: Connector: Bridge Connected");
-
-        // Subscribe and forward state to background/sidepanel via runtime messages if needed
-        // For now, the sidepanel uses RemoteBridge which goes through the Arbiter/Background
-        bridge.subscribe((state) => {
-          console.log("AXBE: Connector: Bridge State Update", state);
-          // TODO: Forward to background if architecture demands it,
-          // but RemoteBridge usually polls or sends messages to Content Script.
-        });
-      } catch (e) {
-        console.error("AXBE: Connector: Failed to connect bridge", e);
-      }
-    }
-  } else {
-    if (bridge) {
-      bridge.disconnect();
-      console.log("AXBE: Connector: Bridge Disconnected (Revoked Master)");
-    }
-  }
-});
+//   if (isMaster) {
+//     const baseUrl = await getBaseUrl();
+//     if (baseUrl) {
+//       console.log("AXBE: Connector: Bridge Connected");
+//     }
+//   }
+// });
 
 // Listen for configuration changes
 onBaseUrlChange((newUrl) => {
