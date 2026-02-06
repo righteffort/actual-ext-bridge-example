@@ -43,7 +43,7 @@ export default function App() {
 
     console.log(`AXBE: subscribing to state updates`);
     const unsubscribe = bridge.subscribe((state) => {
-      console.log(`AXBE: received new state ${JSON.stringify(state)}`);
+      console.debug(`AXBE: received new state ${JSON.stringify(state)}`);
       setBridgeState(state);
       if (state.connected) {
         setStatus("Connected to Actual");
@@ -86,7 +86,9 @@ export default function App() {
         setStatus("Permission denied.");
       }
     } catch (e) {
-      setStatus(`Invalid URL format: ${e instanceof Error ? e.message : String(e)}`);
+      const msg = `Invalid URL format: ${e instanceof Error ? e.message : String(e)}`;
+      console.warn(`AXBE: ${msg}`);
+      setStatus(msg);
     }
   };
 
@@ -108,8 +110,10 @@ export default function App() {
         cleared: false
       });
       setStatus("Success: Imported Transaction");
-    } catch (e: any) {
-      setStatus(`Error: ${e.message}`);
+    } catch (e) {
+      const msg = `Error: ${e instanceof Error ? e.message : String(e)}`;
+      console.warn(`AXBE: ${msg}`);
+      setStatus(msg);
     }
   };
 
@@ -137,8 +141,10 @@ export default function App() {
         await bridge.updateTransaction(updatedTx);
       }
       setStatus(`Success: Updated ${targets.length} transactions.`);
-    } catch (e: any) {
-      setStatus(`Error: ${e.message}`);
+    } catch (e) {
+      const msg = `Error: ${e instanceof Error ? e.message : String(e)}`;
+      console.warn(`AXBE: ${msg}`);
+      setStatus(msg);
     }
   };
 
@@ -188,8 +194,10 @@ export default function App() {
         await bridge.updateTransaction(updatedTx);
       }
       setStatus(`Success: Split ${targets.length} transactions.`);
-    } catch (e: any) {
-      setStatus(`Error: ${e.message}`);
+    } catch (e) {
+      const msg = `Error: ${e instanceof Error ? e.message : String(e)}`;
+      console.warn(`AXBE: ${msg}`);
+      setStatus(msg);
     }
   };
 

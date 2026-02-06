@@ -22,6 +22,9 @@ function generateManifest() {
 }
 
 export default defineConfig({
+  build: {
+    minify: false,
+  },
   plugins: [
     react(),
     webExtension({
