@@ -161,9 +161,6 @@ export default function App() {
       }
 
       for (const tx of targets) {
-        // Create a split: Original amount is split into two.
-        // Actual Budget handles splits by having subtransactions sum up (usually).
-        // Or parent transaction amount = sum of subtransactions.
         const splitAmount1 = Math.floor(tx.amount / 2);
         const splitAmount2 = tx.amount - splitAmount1;
 	const newNotes = tx.notes?.replace("extension test split me", "extension test split complete");
@@ -172,26 +169,20 @@ export default function App() {
 	}
         const updatedTx: Transaction = {
           ...tx,
-          notes: newNotes,
-          is_parent: true,
-          subtransactions: [
+          notes: newNotes
+	};
+	const subtransactions = [
             {
-              id: crypto.randomUUID(),
-              account: tx.account,
-              date: tx.date,
               amount: splitAmount1,
               notes: "Split Part 1",
             },
             {
-              id: crypto.randomUUID(),
-              account: tx.account,
-              date: tx.date,
               amount: splitAmount2,
               notes: "Split Part 2",
             }
-          ]
-        };
-        await bridge.updateTransaction(updatedTx);
+        ];
+
+        await bridge.splitTransaction(updatedTx, subtransactions);
       }
       setStatus(`Success: Split ${targets.length} transactions.`);
     } catch (e) {
