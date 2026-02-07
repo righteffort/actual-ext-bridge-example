@@ -14,7 +14,7 @@ function generateManifest() {
     web_accessible_resources: [
       ...(manifest.web_accessible_resources || []),
       {
-        resources: ["src/content/guest-logic.js"],
+        resources: ["src/content/injected-actual.js"],
         matches: ["<all_urls>"]
       }
     ]
@@ -35,7 +35,7 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         {
-          src: "node_modules/@righteffort/actual-ext-bridge/dist/content/guest-logic.js",
+          src: "node_modules/@righteffort/actual-ext-bridge/dist/content/injected-actual.js",
           dest: "src/content"
         }
       ]

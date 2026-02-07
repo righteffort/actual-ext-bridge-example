@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getBaseUrl, setBaseUrl } from "../shared/storage";
-import { RemoteBridge } from "@righteffort/actual-ext-bridge";
+import { BackgroundBridge } from "@righteffort/actual-ext-bridge";
 import type { BridgeState, Transaction } from "@righteffort/actual-ext-bridge";
 
 /**
@@ -19,7 +19,7 @@ export default function App() {
   const [targetAccountName, setTargetAccountName] = useState("");
   const [resolvedAccountId, setResolvedAccountId] = useState<string | null>(null);
 
-  const [bridge] = useState(() => new RemoteBridge());
+  const [bridge] = useState(() => new BackgroundBridge());
 
   useEffect(() => {
     // Load initial config
@@ -99,7 +99,7 @@ export default function App() {
     }
 
     try {
-      const today = new Date().toISOString().split("T")[0]!;
+      const today = new Date().toLocaleDateString("en-CA"); // Today in local time zone
       await bridge.createTransaction({
         account: resolvedAccountId,
         date: today,

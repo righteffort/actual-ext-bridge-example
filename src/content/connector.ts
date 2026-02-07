@@ -16,7 +16,7 @@ async function init() {
     baseUrl ? `Target: ${baseUrl}` : "No URL configured",
   );
 
-  // If we have a URL, start the arbiter/router
+  // If we have a URL, start the router
   if (baseUrl) {
     if (window.location.origin === baseUrl) {
       console.log("ABXE: starting connector...");
